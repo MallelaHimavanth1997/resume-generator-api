@@ -1,3 +1,17 @@
+import os
+import io
+import tempfile
+from flask import Flask, request, send_file, jsonify
+from generate_resume import build_resume
+
+app = Flask(__name__)
+
+API_KEY = os.environ.get("API_KEY", "")
+
+@app.route("/", methods=["GET"])
+def health():
+    return jsonify({"status": "ok", "service": "resume-generator"}), 200
+
 @app.route("/generate", methods=["POST"])
 def generate():
     if API_KEY:
@@ -9,7 +23,6 @@ def generate():
     if not data:
         return jsonify({"error": "missing or invalid JSON body"}), 400
 
-    # Normalize experience field names
     if "experience" in data:
         normalized = []
         for job in data["experience"]:
@@ -22,18 +35,16 @@ def generate():
             })
         data["experience"] = normalized
 
-    # Normalize certifications
     if "certifications" in data:
         data["certifications"] = [
             {"name": c, "description": ""} if isinstance(c, str) else c
             for c in data["certifications"]
         ]
 
-    # Normalize projects
     if "projects" in data:
         data["projects"] = [
-            {"title": p.get("title") or p.get("name",""), 
-             "bullets": p.get("bullets") or [p.get("description","")]}
+            {"title": p.get("title") or p.get("name", ""),
+             "bullets": p.get("bullets") or [p.get("description", "")]}
             for p in data["projects"]
         ]
 
@@ -56,3 +67,7 @@ def generate():
         )
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
